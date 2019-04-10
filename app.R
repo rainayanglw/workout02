@@ -52,8 +52,7 @@ ui <- fluidPage(
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
-  
-   output$TimelinesPlot <- renderPlot({
+   data <- reactive({
      future_value <- function(amount, rate, years) {
        x = amount*(1+rate)^years
        return(x)
@@ -84,14 +83,19 @@ server <- function(input, output) {
      for (i in 0:input$Years){
        growing_contrib[i+1] = future_value(input$InitialAmount,input$ReturnRate / 100, i) + growing_annuity(input$AnnualContribution, input$ReturnRate / 100, input$GrowthRate / 100, i)
      }
-      # generate plot based on inputs from ui.R
-     
      year = c(0:input$Years)
      modalities <- data.frame("year" = year, "no_contrib" = no_contrib ,"fixed_contrib" = fixed_contrib, "growing_contrib" = growing_contrib)
+     
+   })
+  
+   output$TimelinesPlot <- renderPlot({
+      # generate plot based on inputs from ui.R
+     
+     
      library(ggplot2)
      if (input$Facet == "Yes"){
        library(reshape2)
-       d <- melt(modalities, id = 1:3, measure = 2:4)
+       d <- melt(data(), id = 1:3, measure = 2:4)
        library(ggplot2)
        graph_modes <- ggplot(data = d, aes(x = year, y = value, color = variable)) + 
          ggtitle("Three modes of investing") +
@@ -99,7 +103,7 @@ server <- function(input, output) {
          labs(x = "Time", y = "Growth") + 
          facet_wrap(~variable)
      } else{
-     graph_modes <- ggplot(data = modalities, aes(x = year)) + 
+     graph_modes <- ggplot(data = data(), aes(x = year)) + 
        ggtitle("Three modes of investing") +
        geom_line(aes(y = no_contrib, color = "no_contrib")) +
        geom_line(aes(y = fixed_contrib, color = "fixed_contrib")) +
@@ -112,41 +116,8 @@ server <- function(input, output) {
    
    
    output$dataframe <- renderTable({
-     future_value <- function(amount, rate, years) {
-       x = amount*(1+rate)^years
-       return(x)
-     }
-     
-     annuity <- function(contrib, rate, years) {
-       x = contrib*(((1+rate)^years-1)/rate)
-       return(x)
-     }
-     
-     growing_annuity <- function(contrib, rate, growth, years) {
-       x = contrib*(((1+rate)^years-(1+growth)^years)/(rate-growth))
-       return(x)
-     }
-     
-     no_contrib <- c()
-     fixed_contrib <- c()
-     growing_contrib <- c()
-     
-     for (i in 0:input$Years){
-       no_contrib[i+1] = future_value(input$InitialAmount,input$ReturnRate / 100, i)
-     }
-     
-     for (i in 0:input$Years){
-       fixed_contrib[i+1] = future_value(input$InitialAmount,input$ReturnRate / 100, i) + annuity(input$AnnualContribution, input$ReturnRate / 100, i)
-     }
-     
-     for (i in 0:input$Years){
-       growing_contrib[i+1] = future_value(input$InitialAmount,input$ReturnRate / 100, i) + growing_annuity(input$AnnualContribution, input$ReturnRate / 100, input$GrowthRate / 100, i)
-     }
      # generate plot based on inputs from ui.R
-     
-     year = c(0:input$Years)
-     modalities <- data.frame("year" = year, "no_contrib" = no_contrib ,"fixed_contrib" = fixed_contrib, "growing_contrib" = growing_contrib)
-     modalities
+     data()
    })
 }
 
